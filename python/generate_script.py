@@ -1,7 +1,64 @@
 #!/usr/bin/python3
 from multiprocessing import Process
+from optparse import OptionParser
 import shutil
 import os
+import sys
+
+def main(argv):
+    NUMBER_OF_TABLES = 0
+    NUMBER_OF_COLUMNS = 0
+    NUMBER_OF_ROWS = 0
+    multithreadOn = None
+
+    usage = "usage: %prog -t <num_of_tables> -c <num_of_cols> -r <num_of_rows> [-m]"
+    parser = OptionParser(usage)
+    parser.add_option("-t", "--tablenum", dest="NUMBER_OF_TABLES", help="number of tables", metavar="TABLENUM")
+    parser.add_option("-c", "--colnum", dest="NUMBER_OF_COLUMNS", help="number of columns per table", metavar="COLNUM")
+    parser.add_option("-r", "--rownum", dest="NUMBER_OF_ROWS", help="number of rows per column", metavar="ROWNUM")
+    parser.add_option("-m", "--multithread", action="store_true", dest="multithreadOn", help="allow multithreading", default=False)
+
+    (options, args) = parser.parse_args()
+
+    if not options.NUMBER_OF_TABLES:
+        parser.error("undefined number of tables")
+    if not options.NUMBER_OF_COLUMNS:
+        parser.error("undefined number of columns")
+    if not options.NUMBER_OF_ROWS:
+        parser.error("undefined number of rows")
+
+    NUMBER_OF_TABLES = int(options.NUMBER_OF_TABLES)
+    NUMBER_OF_COLUMNS = int(options.NUMBER_OF_COLUMNS)
+    NUMBER_OF_ROWS = int(options.NUMBER_OF_ROWS)
+    multithreadOn = bool(options.multithreadOn)
+
+    if multithreadOn:
+        print("Multithreading On")
+    else:
+        print("Multithreading Off")
+
+    print("Preparing...")
+    if os.path.exists("gen/"):
+        shutil.rmtree("gen/")
+
+    os.makedirs("gen/")
+
+    for tableNum in range(0, NUMBER_OF_TABLES):
+        if multithreadOn:
+            p = Process(target=genTableCreatorScript, args=(tableNum, NUMBER_OF_COLUMNS, NUMBER_OF_ROWS,))
+            p.start()
+        else:
+            genTableCreatorScript(tableNum, NUMBER_OF_COLUMNS, NUMBER_OF_ROWS)
+
+    if multithreadOn:
+        p.join()
+
+    print("Cleanup...")
+    if os.path.exists("gen/"):
+   	    shutil.rmtree("gen/")    
+
+    print("Done.")
+
 
 def genTableCreatorScript(tableNum, NUMBER_OF_COLUMNS, NUMBER_OF_ROWS):
 	print("Generating script for table " + str(tableNum + 1) + " (pid:" + str(os.getpid()) + ")")
@@ -51,27 +108,8 @@ def genTableCreatorScript(tableNum, NUMBER_OF_COLUMNS, NUMBER_OF_ROWS):
 
 	file.close()
 
+def executePsqlScript(host, user, password, d):
+	'''psql -h 172.17.0.2 -U postgres -W -f create_tables.sql'''
 
-print("Preparing...")
-if os.path.exists("gen/"):
-	shutil.rmtree("gen/")
-
-os.makedirs("gen/")
-
-DATABASE_NAME = "testdb"
-DATABASE_OWNER = "postgres"
-NUMBER_OF_TABLES = 5
-NUMBER_OF_COLUMNS = 10
-NUMBER_OF_ROWS = 40000
-
-for tableNum in range(0, NUMBER_OF_TABLES):
-	p = Process(target=genTableCreatorScript, args=(tableNum, NUMBER_OF_COLUMNS, NUMBER_OF_ROWS,))
-	p.start()
-
-p.join()
-
-print("Cleanup...")
-if os.path.exists("gen/"):
-	shutil.rmtree("gen/")
-
-print("Done.")
+if __name__ == "__main__":
+   main(sys.argv[1:])
