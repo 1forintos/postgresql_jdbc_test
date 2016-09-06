@@ -1,0 +1,11 @@
+Get PostgreSQL image and start container (<=9.5 supported by pgadmin3):
+sudo docker run --name postgres_test -e POSTGRES_PASSWORD=mysecretpassword -d postgres:9.5
+
+Docker start
+sudo docker start postgres_test
+
+Enter container bash:
+sudo docker exec -ti [CONTAINER-ID] /bin/bash
+
+Connect to psql interface remotely:
+psql -h 172.17.0.2 -p 5432 -U postgres -W -d postgres
