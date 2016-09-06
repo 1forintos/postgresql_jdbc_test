@@ -1,22 +1,11 @@
 #!/usr/bin/python3
-
+from multiprocessing import Process
 import shutil
 import os
 
-print("Preparing...")
-if os.path.exists("gen/"):
-	shutil.rmtree("gen/")
+def genTableCreatorScript(tableNum, NUMBER_OF_COLUMNS, NUMBER_OF_ROWS):
+	print("Generating script for table " + str(tableNum + 1) + " (pid:" + str(os.getpid()) + ")")
 
-os.makedirs("gen/")
-
-DATABASE_NAME = "testdb"
-DATABASE_OWNER = "postgres"
-NUMBER_OF_TABLES = 5
-NUMBER_OF_COLUMNS = 10
-NUMBER_OF_ROWS = 400
-
-for tableNum in range(0, NUMBER_OF_TABLES):
-	print("Generating script for table " + str(tableNum + 1))
 	file = open("gen/create_table" + str(tableNum + 1) + ".sql", 'w')
 	line = "DROP TABLE table" + str(tableNum + 1) + ";\n"
 	file.write(line)
@@ -61,3 +50,28 @@ for tableNum in range(0, NUMBER_OF_TABLES):
 		file.write("\n")
 
 	file.close()
+
+
+print("Preparing...")
+if os.path.exists("gen/"):
+	shutil.rmtree("gen/")
+
+os.makedirs("gen/")
+
+DATABASE_NAME = "testdb"
+DATABASE_OWNER = "postgres"
+NUMBER_OF_TABLES = 5
+NUMBER_OF_COLUMNS = 10
+NUMBER_OF_ROWS = 40000
+
+for tableNum in range(0, NUMBER_OF_TABLES):
+	p = Process(target=genTableCreatorScript, args=(tableNum, NUMBER_OF_COLUMNS, NUMBER_OF_ROWS,))
+	p.start()
+
+p.join()
+
+print("Cleanup...")
+if os.path.exists("gen/"):
+	shutil.rmtree("gen/")
+
+print("Done.")
