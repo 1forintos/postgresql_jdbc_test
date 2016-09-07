@@ -5,7 +5,29 @@ Docker start
 sudo docker start postgres_test
 
 Enter container bash:
-sudo docker exec -ti [CONTAINER-ID] /bin/bash
+sudo docker exec -ti 99ca6832ef82 /bin/bash
 
 Connect to psql interface remotely:
 psql -h 172.17.0.2 -p 5432 -U postgres -W -d postgres
+
+Dockerfile:
+  psgre_custom:
+    - postgresql 9.5
+    - du
+
+Installed on host machine
+    sudo apt-get install postgresql-server-dev-all
+    python package: psycopg2
+
+PostgreSQL db size:
+    - important data size in /var/lib/postgresql/data/base folder
+    - rapidly increasing logs stored in /var/lib/postgresql/data/pg_xlog
+        - delete them from time to time
+
+TODO
+    - postgresql log mi hogy miért üríteni stb
+    - batch transaction insert nél psql
+    - postgresql logok
+    - generátor szkriptben esetleg paraméterkénet, hogy miket hajtson végre
+    - ubuntu-ba telepíteni a postgresql -es dependency- ét a java programnak (postgresql-jdbc ~)
+    - ubuntu image-et kiegészíteni install okkal
