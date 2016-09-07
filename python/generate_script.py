@@ -1,10 +1,15 @@
 #!/usr/bin/python3
+'''
+@author Márton Kamrás
+'''
+
 from multiprocessing import Process
 from optparse import OptionParser
 import shutil
 import os
 import sys
 import subprocess
+import time
 
 def main(argv):
     dbhost = ""
@@ -54,12 +59,17 @@ def main(argv):
         print("Multithreading Off")
 
     print("Preparing...")
+    if os.path.exists("tmp/"):
+        shutil.rmtree("tmp/")
     if os.path.exists("gen/"):
         shutil.rmtree("gen/")
 
+    os.makedirs("tmp/")
     os.makedirs("gen/")
 
+    tableNames = []
     # generate table creator scripts
+    print("Generating table creator scripts...")
     for tableNum in range(1, NUMBER_OF_TABLES + 1):
         if multithreadOn:
             p1 = Process(target=genTableCreatorScript, args=(tableNum, NUMBER_OF_COLUMNS, NUMBER_OF_ROWS,))
@@ -67,33 +77,61 @@ def main(argv):
         else:
             genTableCreatorScript(tableNum, NUMBER_OF_COLUMNS, NUMBER_OF_ROWS)
 
+        tableNames.append("table" + str(tableNum))
+
     if multithreadOn:
         for i in range(0, tableNum):
             p1.join()
 
     # ececute table creator scripts
+    print("Creating tables...")
+    os.environ["PGPASSWORD"] = password
     for tableNum in range(1, NUMBER_OF_TABLES + 1):
+        scriptPath = "tmp/create_table" + str(tableNum) + ".sql"
+        subprocessArgs = ["psql", "-h", dbhost, "-U", user, "-f", scriptPath]
+        msg = "Creating table " + str(tableNum)
         if multithreadOn:
-            p2 = Process(target=executePsqlScript, args=(tableNum, dbhost, user, password,))
+            p2 = Process(target=executePsqlScript, args=(subprocessArgs, msg, True, False))
             p2.start()
         else:
-            executePsqlScript(tableNum, dbhost, user, password)
+            executePsqlScript(subprocessArgs, msg, False, False)
 
     if multithreadOn:
         for i in range(0, tableNum):
             p2.join()
 
+    # generate table verifying scripts
+    print("Generating table verification scripts...")
+    for tableName in tableNames:
+        #if multithreadOn:
+        #    p2 = Process(target=generateTableVerifyingScript, args=(tableName,))
+        #    p2.start()
+        #else:
+        generateTableVerifyingScript(tableName)
+
+    print("Verifying tables...")
+    for tableNum in range(1, NUMBER_OF_TABLES + 1):
+        scriptPath = "gen/verify_table" + str(tableNum) + ".sql"
+        subprocessArgs = ["psql", "-h", dbhost, "-U", user, "-f", scriptPath]
+        msg = "Verifying table " + str(tableNum)
+        if multithreadOn:
+            p2 = Process(target=executePsqlScript, args=(subprocessArgs, msg, True, True))
+            p2.start()
+        else:
+            executePsqlScript(subprocessArgs, msg, False, True)
+
+    p2.join()
+    time.sleep(0.1)
     print("Cleanup...")
-    if os.path.exists("gen/"):
-           shutil.rmtree("gen/")
+    if os.path.exists("tmp/"):
+            shutil.rmtree("tmp/")
 
-    print("Done.")
-
+    print("Finished.")
 
 def genTableCreatorScript(tableNum, NUMBER_OF_COLUMNS, NUMBER_OF_ROWS):
     print("Generating script for table " + str(tableNum) + " (pid:" + str(os.getpid()) + ")")
-
-    file = open("gen/create_table" + str(tableNum) + ".sql", 'w')
+    tableName = "table" + str(tableNum)
+    file = open("tmp/create_table" + str(tableNum) + ".sql", 'w')
     line = "DROP TABLE IF EXISTS table" + str(tableNum) + ";\n"
     file.write(line)
     line = "CREATE TABLE table" + str(tableNum) + " (\n"
@@ -138,14 +176,26 @@ def genTableCreatorScript(tableNum, NUMBER_OF_COLUMNS, NUMBER_OF_ROWS):
 
     file.close()
 
-def executePsqlScript(scriptNum, dbhost, user, password):
-    os.environ["PGPASSWORD"] = password
-    print("Creating table " + str(scriptNum) + " (pid:" + str(os.getpid()) + ")")
-    scriptPath = "gen/create_table" + str(scriptNum) + ".sql"
-    FNULL = open(os.devnull, 'w')
-    #
-    subprocess.run(["psql", "-h", dbhost, "-U", user, "-f", scriptPath], stdout=FNULL, stderr=subprocess.STDOUT)
 
+def executePsqlScript(args, msg, multithreadOn, showOutput):
+    if multithreadOn:
+        msg += " (pid:" + str(os.getpid()) + ")"
+    if msg is not None:
+        print(msg)
+
+    if showOutput:
+        subprocess.run(args, stdout=sys.stdout, stderr=subprocess.STDOUT)
+    else:
+        FNULL = open(os.devnull, 'w')
+        subprocess.run(args, stdout=FNULL, stderr=subprocess.STDOUT)
+
+def generateTableVerifyingScript(tableName):
+    line = "SELECT \'" + tableName + "\' as table_name, COUNT(*) as num_of_rows FROM " + tableName + ";"
+    scriptPath = "gen/verify_" + tableName + ".sql"
+    file = open(scriptPath, 'w')
+    file.write(line)
+    file.close()
+    print("Generated \"" + scriptPath + "\"")
 
 if __name__ == "__main__":
    main(sys.argv[1:])
