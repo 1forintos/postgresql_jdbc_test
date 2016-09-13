@@ -1,5 +1,5 @@
 Get PostgreSQL image and start container (<=9.5 supported by pgadmin3):
-sudo docker run --name postgres_test -e POSTGRES_PASSWORD=mysecretpassword -d postgres:9.5
+sudo docker run -it --name postgres_test -d ubuntu/postgres:latest
 
 Docker start
 sudo docker start postgres_test
@@ -24,6 +24,7 @@ PostgreSQL db size:
     - rapidly increasing logs stored in /var/lib/postgresql/data/pg_xlog
         - delete them from time to time
 
+
 TODO
     - postgresql log mi hogy miért üríteni stb
     - batch transaction insert nél psql
@@ -31,3 +32,8 @@ TODO
     - generátor szkriptben esetleg paraméterkénet, hogy miket hajtson végre
     - ubuntu-ba telepíteni a postgresql -es dependency- ét a java programnak (postgresql-jdbc ~)
     - ubuntu image-et kiegészíteni install okkal
+    - docker jelszó nélküli elérés
+    - internet a dockerbe
+    - ssh
+    - java -cp jar1:jar2:jar3 fullQualified.Path.id.MainClass
+    - eclipse mars

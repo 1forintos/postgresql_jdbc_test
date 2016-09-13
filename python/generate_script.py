@@ -170,8 +170,10 @@ def genTableCreatorScript(tableNum, NUMBER_OF_COLUMNS, NUMBER_OF_ROWS):
             else:
                 insertPart2 += ");"
 
+        file.write("BEGIN;")
         file.write(insertPart1)
         file.write(insertPart2)
+        file.write("COMMIT;")
         file.write("\n")
 
     file.close()
