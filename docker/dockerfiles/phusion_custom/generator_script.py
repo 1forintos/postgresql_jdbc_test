@@ -125,7 +125,8 @@ def main(argv):
     print("Cleanup...")
     if os.path.exists("tmp/"):
             shutil.rmtree("tmp/")
-
+    #if os.path.exists("gen/"):
+    #        shutil.rmtree("gen/")
     print("Finished.")
 
 def genTableCreatorScript(tableNum, NUMBER_OF_COLUMNS, NUMBER_OF_ROWS):

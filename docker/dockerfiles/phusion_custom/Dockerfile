@@ -6,6 +6,11 @@ ADD startup_script.sh /etc/my_init.d/
 # make it executable
 RUN chmod +x /etc/my_init.d/startup_script.sh
 
+# dummy Database data generator script
+RUN mkdir /scripts/
+ADD generator_script.py /scripts/
+RUN chmod +x /scripts/generator_script.py
+
 # enable SSH
 RUN rm -f /etc/service/sshd/down
 
@@ -36,11 +41,13 @@ RUN echo "host all  all    0.0.0.0/0  trust" >> /etc/postgresql/9.3/main/pg_hba.
 # And add ``listen_addresses`` to ``/etc/postgresql/9.3/main/postgresql.conf``
 RUN echo "listen_addresses='*'" >> /etc/postgresql/9.3/main/postgresql.conf
 
+RUN /etc/init.d/postgresql restart
+
+EXPOSE 5432
+
 # USER postgres
 
 # Add VOLUMEs to allow backup of config, logs and databases
 # VOLUME  ["/etc/postgresql", "/var/log/postgresql", "/var/lib/postgresql"]
 
 # CMD ["/usr/lib/postgresql/9.3/bin/postgres", "-D", "/var/lib/postgresql/9.3/main", "-c", "config_file=/etc/postgresql/9.3/main/postgresql.conf"]
-
-EXPOSE 5432

@@ -24,16 +24,26 @@ PostgreSQL db size:
     - rapidly increasing logs stored in /var/lib/postgresql/data/pg_xlog
         - delete them from time to time
 
+Internet forward to container:
+    - /etc/sysctl.conf -> net.ipv4.ip_forward=1
+
+SSH:
+    https://github.com/phusion/baseimage-docker#login_ssh
+    HOST:
+        # Download the insecure private key
+        curl -o insecure_key -fSL https://github.com/phusion/baseimage-docker/raw/master/image/services/sshd/keys/insecure_key
+        chmod 600 insecure_key
+
+        # Login to the container
+        ssh -i insecure_key root@<IP address>
 
 TODO
     - postgresql log mi hogy miért üríteni stb
     - batch transaction insert nél psql
-    - postgresql logok
     - generátor szkriptben esetleg paraméterkénet, hogy miket hajtson végre
     - ubuntu-ba telepíteni a postgresql -es dependency- ét a java programnak (postgresql-jdbc ~)
-    - ubuntu image-et kiegészíteni install okkal
-    - docker jelszó nélküli elérés
-    - internet a dockerbe
-    - ssh
     - java -cp jar1:jar2:jar3 fullQualified.Path.id.MainClass
-    - eclipse mars
+
+    - generator nem kell hogy mindig lefusson
+    - java nem kell konténerbe, futhat kívülről is
+    - [opcional] ssh check
