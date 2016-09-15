@@ -16,14 +16,18 @@ public class DBClient {
 	public static String[] tableNames = {"table1", "table2", "table3", "table4", "table5"};
 	
 	public static void main(String[] args) {
-		if(tablesExist()) {
-			
+		while(!tablesExist());
+		while(true) {
+			getLastNRecordsFromTable(1000, "table3");
 		}
-	}
+		
+	} 
 	
 	private static boolean tablesExist() {
-		boolean tablesExist = true;
+		Logger lgr = Logger.getLogger(DBClient.class.getName());
+		lgr.log(Level.INFO, "Verifying tables existence...");
 		
+		boolean tablesExist = true; // TODO rename exists
 		Connection con = null;
 		Statement st = null;
 		ResultSet rs = null;
@@ -32,22 +36,25 @@ public class DBClient {
 			con = DriverManager.getConnection(URL, USER, PASSWORD);
 			for (String tableName : tableNames) {
 				st = con.createStatement();
-				rs = st.executeQuery("SELECT EXISTS ("
-						+ "SELECT 1 "
-						+ "FROM information_schema.tables "
-						+ "WHERE table_name = '" + tableName + "'"
-						+ ");");
+				rs = st.executeQuery("SELECT count(*) AS row_count FROM " + tableName);
 				if(rs.next()) {
-					if(!rs.getBoolean(1)) {
-						Logger lgr = Logger.getLogger(DBClient.class.getName());
-						lgr.log(Level.SEVERE, "Table does not exist: " + tableName);
+					int rowCount = rs.getInt("row_count");
+					if(rowCount != 60000) {
+						lgr.log(Level.SEVERE, "Unexpected count of rows in [" + tableName + "]");
 						tablesExist = false;
 					}
 				}
+				/*if(rs.next()) {
+					if(!rs.getBoolean(1)) {
+						lgr.log(Level.SEVERE, "Table does not exist: " + tableName);
+						tablesExist = false;
+					} else {
+						// lgr.log(Level.INFO, "Table [" + tableName + "] exists.");
+					}
+				}*/
 			}
 
 		} catch (SQLException ex) {
-			Logger lgr = Logger.getLogger(DBClient.class.getName());
 			lgr.log(Level.SEVERE, ex.getMessage(), ex);
 			tablesExist = false;
 		} finally {
@@ -63,11 +70,47 @@ public class DBClient {
 				}
 
 			} catch (SQLException ex) {
-				Logger lgr = Logger.getLogger(DBClient.class.getName());
 				lgr.log(Level.WARNING, ex.getMessage(), ex);
 				tablesExist = false;
 			}
 		}
 		return tablesExist;
+	}
+
+	private static void getLastNRecordsFromTable(int n, String tableName) {
+		Logger lgr = Logger.getLogger(DBClient.class.getName());
+		lgr.log(Level.INFO, "Selecting " + n + " records from " + tableName);
+		
+		Connection con = null;
+		Statement st = null;
+		ResultSet rs = null;
+		
+		try {
+			con = DriverManager.getConnection(URL, USER, PASSWORD);
+			st = con.createStatement();
+			rs = st.executeQuery("SELECT * FROM " + tableName + " LIMIT " + n + " OFFSET 50;");
+			rs = st.executeQuery("SELECT count(*) AS row_count FROM " + tableName);
+			if(rs.next()) {
+				System.out.println(rs.getInt("row_count"));
+			}
+
+		} catch (SQLException ex) {
+			lgr.log(Level.SEVERE, ex.getMessage(), ex);
+		} finally {
+			try {
+				if (rs != null) {
+					rs.close();
+				}
+				if (st != null) {
+					st.close();
+				}
+				if (con != null) {
+					con.close();
+				}
+
+			} catch (SQLException ex) {
+				lgr.log(Level.WARNING, ex.getMessage(), ex);
+			}
+		}
 	}
 }
