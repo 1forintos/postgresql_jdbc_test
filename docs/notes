@@ -1,5 +1,15 @@
+Example usage of data postgresql data table script:
+    ./generator_script.py -d 172.17.0.2 -u postgres -p postgres -t 5 -c 10 -r 60000 -m
+
+Example usage of table verification script:
+    ./verify_tables.py -d 172.17.0.2 -u postgres -t 5 -m
+
+
 Get PostgreSQL image and start container (<=9.5 supported by pgadmin3):
 sudo docker run -it --name postgres_test -d ubuntu/postgres:latest
+
+Tag docker image
+sudo docker tag ba639ad5f752 phusion/postgres:latest
 
 Docker start
 sudo docker start postgres_test
@@ -7,25 +17,39 @@ sudo docker start postgres_test
 Enter container bash:
 sudo docker exec -ti 99ca6832ef82 /bin/bash
 
+JDBCClient execution example:
+    java -cp "postgres.dbclient-0.0.1-SNAPSHOT.jar:/home/mkamras/Downloads/postgresql-9.3-1104.jdbc41.jar" postgres.dbclient.DBClient
+
+JDBC libpostgresql-jdbc-java
+
 Connect to psql interface remotely:
 psql -h 172.17.0.2 -p 5432 -U postgres -W -d postgres
 
-Dockerfile:
-  psgre_custom:
-    - postgresql 9.5
-    - du
 
 Installed on host machine
     sudo apt-get install postgresql-server-dev-all
     python package: psycopg2
 
 PostgreSQL db size:
-    - important data size in /var/lib/postgresql/data/base folder
-    - rapidly increasing logs stored in /var/lib/postgresql/data/pg_xlog
-        - delete them from time to time
+    - http://blog.endpoint.com/2014/09/pgxlog-disk-space-problem-on-postgres.html
+    - stored data size in /var/lib/postgresql/9.3/main/base folder
+    - rapidly increasing xlogs stored in /var/lib/postgresql/9.3/main/pg_xlogs/
+        - monitor its size
+    - http://blog.endpoint.com/2014/09/pgxlog-disk-space-problem-on-postgres.html
 
 Internet forward to container:
     - /etc/sysctl.conf -> net.ipv4.ip_forward=1
+
+systemd startup script how to:
+    1. the script: /usr/bin/my_service.sh (make it executable (chmod +x))
+    2. the unit file: /etc/systemd/system/my_service.service
+    3. systemctl enable my_service.service
+
+    # did not work in docker container
+
+PostgreSQL logs:
+    https://www.postgresql.org/docs/9.3/static/runtime-config-logging.html
+    /etc/postgresql/9.3/main/postgresql.conf
 
 SSH:
     https://github.com/phusion/baseimage-docker#login_ssh
@@ -37,13 +61,10 @@ SSH:
         # Login to the container
         ssh -i insecure_key root@<IP address>
 
-TODO
-    - postgresql log mi hogy miért üríteni stb
-    - batch transaction insert nél psql
-    - generátor szkriptben esetleg paraméterkénet, hogy miket hajtson végre
-    - ubuntu-ba telepíteni a postgresql -es dependency- ét a java programnak (postgresql-jdbc ~)
-    - java -cp jar1:jar2:jar3 fullQualified.Path.id.MainClass
-
-    - generator nem kell hogy mindig lefusson
-    - java nem kell konténerbe, futhat kívülről is
-    - [opcional] ssh check
+TODO:
+    - helyesség ellenőrzése (generátor szkript)
+    - erőforráskorlátozás figyelmesen
+    - CPU szál/órajel
+    - jiffy esetleg, odafigyelni
+    - !!! xlog felsőkorlát van-e, esetleg beállítani, postgre-s forrás !!!
+    - java kliens: timestampek

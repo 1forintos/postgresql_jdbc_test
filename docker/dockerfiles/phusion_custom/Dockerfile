@@ -10,6 +10,8 @@ RUN chmod +x /etc/my_init.d/startup_script.sh
 RUN mkdir /scripts/
 ADD generator_script.py /scripts/
 RUN chmod +x /scripts/generator_script.py
+ADD verify_tables.py /scripts/
+RUN chmod +x /scripts/verify_tables.py
 
 # enable SSH
 RUN rm -f /etc/service/sshd/down
@@ -40,6 +42,13 @@ RUN echo "host all  all    0.0.0.0/0  trust" >> /etc/postgresql/9.3/main/pg_hba.
 
 # And add ``listen_addresses`` to ``/etc/postgresql/9.3/main/postgresql.conf``
 RUN echo "listen_addresses='*'" >> /etc/postgresql/9.3/main/postgresql.conf
+
+# create folder for PostgreSQL logs
+RUN mkdir /pg_logs
+RUN chmod 777 /pg_logs
+
+# add custom config file including logging
+ADD postgresql.conf /etc/postgresql/9.3/main/postgresql.conf
 
 RUN /etc/init.d/postgresql restart
 

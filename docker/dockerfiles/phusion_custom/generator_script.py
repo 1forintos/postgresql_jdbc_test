@@ -88,7 +88,7 @@ def main(argv):
     os.environ["PGPASSWORD"] = password
     for tableNum in range(1, NUMBER_OF_TABLES + 1):
         scriptPath = "tmp/create_table" + str(tableNum) + ".sql"
-        subprocessArgs = ["psql", "-h", dbhost, "-U", user, "-f", scriptPath]
+        subprocessArgs = ["psql", "-h", dbhost, "-U", user, "-f", scriptPath, "-1"]
         msg = "Creating table " + str(tableNum)
         if multithreadOn:
             p2 = Process(target=executePsqlScript, args=(subprocessArgs, msg, True, False))
@@ -100,27 +100,6 @@ def main(argv):
         for i in range(0, tableNum):
             p2.join()
 
-    # generate table verifying scripts
-    print("Generating table verification scripts...")
-    for tableName in tableNames:
-        #if multithreadOn:
-        #    p2 = Process(target=generateTableVerifyingScript, args=(tableName,))
-        #    p2.start()
-        #else:
-        generateTableVerifyingScript(tableName)
-
-    print("Verifying tables...")
-    for tableNum in range(1, NUMBER_OF_TABLES + 1):
-        scriptPath = "gen/verify_table" + str(tableNum) + ".sql"
-        subprocessArgs = ["psql", "-h", dbhost, "-U", user, "-f", scriptPath]
-        msg = "Verifying table " + str(tableNum)
-        if multithreadOn:
-            p2 = Process(target=executePsqlScript, args=(subprocessArgs, msg, True, True))
-            p2.start()
-        else:
-            executePsqlScript(subprocessArgs, msg, False, True)
-
-    p2.join()
     time.sleep(0.1)
     print("Cleanup...")
     if os.path.exists("tmp/"):
@@ -160,7 +139,7 @@ def genTableCreatorScript(tableNum, NUMBER_OF_COLUMNS, NUMBER_OF_ROWS):
             insertPart1 += ", "
         else:
             insertPart1 += ") "
-
+    file.write("BEGIN;")
     for rowNum in range(1, NUMBER_OF_ROWS + 1):
         insertPart2 = "VALUES ("
 
@@ -171,12 +150,12 @@ def genTableCreatorScript(tableNum, NUMBER_OF_COLUMNS, NUMBER_OF_ROWS):
             else:
                 insertPart2 += ");"
 
-        file.write("BEGIN;")
+
         file.write(insertPart1)
         file.write(insertPart2)
-        file.write("COMMIT;")
         file.write("\n")
 
+    file.write("COMMIT;")
     file.close()
 
 
@@ -191,14 +170,6 @@ def executePsqlScript(args, msg, multithreadOn, showOutput):
     else:
         FNULL = open(os.devnull, 'w')
         subprocess.run(args, stdout=FNULL, stderr=subprocess.STDOUT)
-
-def generateTableVerifyingScript(tableName):
-    line = "SELECT \'" + tableName + "\' as table_name, COUNT(*) as num_of_rows FROM " + tableName + ";"
-    scriptPath = "gen/verify_" + tableName + ".sql"
-    file = open(scriptPath, 'w')
-    file.write(line)
-    file.close()
-    print("Generated \"" + scriptPath + "\"")
 
 if __name__ == "__main__":
    main(sys.argv[1:])
