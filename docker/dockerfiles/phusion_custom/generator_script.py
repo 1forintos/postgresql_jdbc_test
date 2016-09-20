@@ -10,6 +10,15 @@ import os
 import sys
 import subprocess
 import time
+import csv
+from enum import Enum
+
+class Phase(Enum):
+    all = 0
+    generateSql = 1
+    runSql = 2
+    generateCsv = 3
+
 
 def main(argv):
     dbhost = ""
@@ -18,9 +27,11 @@ def main(argv):
     NUMBER_OF_TABLES = 0
     NUMBER_OF_COLUMNS = 0
     NUMBER_OF_ROWS = 0
+    phase = 0
     multithreadOn = None
+    saveCsv = None
 
-    usage = "usage: %prog -d <db_host> -u <db_user> -p <db_password> -t <num_of_tables> -c <num_of_cols> -r <num_of_rows> [-m]"
+    usage = "usage: %prog -d <db_host> -u <db_user> -p <db_password> -t <num_of_tables> -c <num_of_cols> -r <num_of_rows> --phase <phase_to_run> [-m]"
     parser = OptionParser(usage)
     parser.add_option("-d", "--dbhost", dest="dbhost", help="database host", metavar="DBHOST")
     parser.add_option("-u", "--user", dest="user", help="database user", metavar="USER")
@@ -28,10 +39,14 @@ def main(argv):
     parser.add_option("-t", "--tablenum", dest="NUMBER_OF_TABLES", help="number of tables", metavar="TABLENUM")
     parser.add_option("-c", "--colnum", dest="NUMBER_OF_COLUMNS", help="number of columns per table", metavar="COLNUM")
     parser.add_option("-r", "--rownum", dest="NUMBER_OF_ROWS", help="number of rows per column", metavar="ROWNUM")
+    parser.add_option("--phase", dest="phase", help="phase to run ["
+        + str(Phase.all.value) + ": all, "
+        + str(Phase.generateSql.value) + ": generate table creator scripts, "
+        + str(Phase.runSql.value) + ": insert tables into database, "
+        + str(Phase.generateCsv.value) + ": generate csv file from tables] Default=0", metavar="PHASE", default=str(Phase.all.value))
     parser.add_option("-m", "--multithread", action="store_true", dest="multithreadOn", help="allow multithreading", default=False)
 
     (options, args) = parser.parse_args()
-
     if not options.dbhost:
         parser.error("undefined database host")
     if not options.user:
@@ -44,6 +59,22 @@ def main(argv):
         parser.error("undefined number of columns")
     if not options.NUMBER_OF_ROWS:
         parser.error("undefined number of rows")
+
+    try:
+        phase = int(options.phase)
+    except ValueError:
+        parser.error("phase parameter has to be an integer.")
+
+    if not (phase == Phase.all.value
+        or phase == Phase.generateSql.value
+        or phase == Phase.runSql.value
+        or phase == Phase.generateCsv.value):
+        parser.error("invalid phase parameter (possible values: ["
+            + str(Phase.all.value) + ","
+            + str(Phase.generateSql.value) + ","
+            + str(Phase.runSql.value) + ","
+            + str(Phase.generateCsv.value) + "], default="
+            + str(Phase.all.value) + ")")
 
     dbhost = options.dbhost
     user = options.user
@@ -59,59 +90,81 @@ def main(argv):
         print("Multithreading Off")
 
     print("Preparing...")
-    if os.path.exists("tmp/"):
-        shutil.rmtree("tmp/")
-    if os.path.exists("gen/"):
+    if os.path.exists("gen/") and phase == Phase.all.value:
         shutil.rmtree("gen/")
+    if os.path.exists("gen/sql/") and phase == Phase.generateSql.value:
+        shutil.rmtree("gen/sql/")
+    if os.path.exists("gen/csv/") and phase == Phase.generateCsv.value:
+        shutil.rmtree("gen/csv/")
+    elif (not os.path.exists("gen/sql/")) and phase == Phase.runSql.value:
+        print("Error: missing SQL scripts. (Run phase " + str(Phase.generateSql.value) + " to generate SQL scripts.)")
+        exit()
 
-    os.makedirs("tmp/")
-    os.makedirs("gen/")
+    if phase == Phase.all.value:
+        os.makedirs("gen/sql/")
+        os.makedirs("gen/csv/")
+    elif phase == Phase.generateSql.value:
+        os.makedirs("gen/sql/")
+    elif phase == Phase.generateCsv.value:
+        os.makedirs("gen/csv/")
 
-    tableNames = []
-    # generate table creator scripts
-    print("Generating table creator scripts...")
-    for tableNum in range(1, NUMBER_OF_TABLES + 1):
+    # ------------------------ GENERATE SQL ------------------------
+    if phase == Phase.all.value or phase == Phase.generateSql.value:
+        # generate table creator scripts
+        print("Generating table creator scripts...")
+        for tableNum in range(1, NUMBER_OF_TABLES + 1):
+            if multithreadOn:
+                p1 = Process(target=genTableCreatorScript, args=(tableNum, NUMBER_OF_COLUMNS, NUMBER_OF_ROWS))
+                p1.start()
+            else:
+                genTableCreatorScript(tableNum, NUMBER_OF_COLUMNS, NUMBER_OF_ROWS)
+
         if multithreadOn:
-            p1 = Process(target=genTableCreatorScript, args=(tableNum, NUMBER_OF_COLUMNS, NUMBER_OF_ROWS,))
-            p1.start()
-        else:
-            genTableCreatorScript(tableNum, NUMBER_OF_COLUMNS, NUMBER_OF_ROWS)
+            for i in range(0, tableNum):
+                p1.join()
 
-        tableNames.append("table" + str(tableNum))
+    # ------------------------ GENERATE CSV ------------------------
+    if phase == Phase.all.value or phase == Phase.generateCsv.value:
+        print("Generating CSV files...")
+        for tableNum in range(1, NUMBER_OF_TABLES + 1):
+            if multithreadOn:
+                p1 = Process(target=genCsvFile, args=(tableNum, NUMBER_OF_COLUMNS, NUMBER_OF_ROWS))
+                p1.start()
+            else:
+                genCsvFile(tableNum, NUMBER_OF_COLUMNS, NUMBER_OF_ROWS)
 
-    if multithreadOn:
-        for i in range(0, tableNum):
-            p1.join()
-
-    # ececute table creator scripts
-    print("Creating tables...")
-    os.environ["PGPASSWORD"] = password
-    for tableNum in range(1, NUMBER_OF_TABLES + 1):
-        scriptPath = "tmp/create_table" + str(tableNum) + ".sql"
-        subprocessArgs = ["psql", "-h", dbhost, "-U", user, "-f", scriptPath, "-1"]
-        msg = "Creating table " + str(tableNum)
         if multithreadOn:
-            p2 = Process(target=executePsqlScript, args=(subprocessArgs, msg, True, False))
-            p2.start()
-        else:
-            executePsqlScript(subprocessArgs, msg, False, False)
+            for i in range(0, tableNum):
+                p1.join()
 
-    if multithreadOn:
-        for i in range(0, tableNum):
-            p2.join()
+    # ------------------------ EXECUTE SQL ------------------------
+    if phase == Phase.all.value or phase == Phase.runSql.value:
+        # ececute table creator scripts
+        print("Creating tables...")
+        os.environ["PGPASSWORD"] = password
+        for tableNum in range(1, NUMBER_OF_TABLES + 1):
+            scriptPath = "gen/sql/create_table" + str(tableNum) + ".sql"
+            subprocessArgs = ["psql", "-h", dbhost, "-U", user, "-f", scriptPath, "-1"]
+            msg = "Creating table " + str(tableNum)
+            if multithreadOn:
+                p2 = Process(target=executePsqlScript, args=(subprocessArgs, msg, True, False))
+                p2.start()
+            else:
+                executePsqlScript(subprocessArgs, msg, False, False)
+
+        if multithreadOn:
+            for i in range(0, tableNum):
+                p2.join()
 
     time.sleep(0.1)
-    print("Cleanup...")
-    if os.path.exists("tmp/"):
-            shutil.rmtree("tmp/")
-    #if os.path.exists("gen/"):
-    #        shutil.rmtree("gen/")
     print("Finished.")
 
 def genTableCreatorScript(tableNum, NUMBER_OF_COLUMNS, NUMBER_OF_ROWS):
-    print("Generating script for table " + str(tableNum) + " (pid:" + str(os.getpid()) + ")")
+    file = None
     tableName = "table" + str(tableNum)
-    file = open("tmp/create_table" + str(tableNum) + ".sql", 'w')
+
+    print("Generating SQL for table " + str(tableNum) + " (pid:" + str(os.getpid()) + ")")
+    file = open("gen/sql/create_table" + str(tableNum) + ".sql", 'w')
     line = "DROP TABLE IF EXISTS table" + str(tableNum) + ";\n"
     file.write(line)
     line = "CREATE TABLE table" + str(tableNum) + " (\n"
@@ -139,17 +192,18 @@ def genTableCreatorScript(tableNum, NUMBER_OF_COLUMNS, NUMBER_OF_ROWS):
             insertPart1 += ", "
         else:
             insertPart1 += ") "
+
     file.write("BEGIN;")
     for rowNum in range(1, NUMBER_OF_ROWS + 1):
         insertPart2 = "VALUES ("
 
         for colNum in range(1, NUMBER_OF_COLUMNS + 1):
-            insertPart2 += "'value_" + str(tableNum) + "_" + str(colNum) + "_" + str(rowNum) + "'"
+            data = "value_" + str(tableNum) + "_" + str(colNum) + "_" + str(rowNum)
+            insertPart2 += "'" + data + "'"
             if colNum < NUMBER_OF_COLUMNS:
                 insertPart2 += ", "
             else:
                 insertPart2 += ");"
-
 
         file.write(insertPart1)
         file.write(insertPart2)
@@ -158,6 +212,26 @@ def genTableCreatorScript(tableNum, NUMBER_OF_COLUMNS, NUMBER_OF_ROWS):
     file.write("COMMIT;")
     file.close()
 
+
+def genCsvFile(tableNum, NUMBER_OF_COLUMNS, NUMBER_OF_ROWS):
+    file = None
+    csvFile = None
+    csvWriter = None
+    tableName = "table" + str(tableNum)
+
+    print("Generating CSV for table " + str(tableNum) + " (pid:" + str(os.getpid()) + ")")
+    csvFile = open("gen/csv/table" + str(tableNum) + ".csv", 'w')
+    csvWriter = csv.writer(csvFile, delimiter=',')
+    
+    for rowNum in range(1, NUMBER_OF_ROWS + 1):
+        csvRowData = []
+        for colNum in range(1, NUMBER_OF_COLUMNS + 1):
+            data = "value_" + str(tableNum) + "_" + str(colNum) + "_" + str(rowNum)
+            csvRowData.append(data)
+
+        csvWriter.writerow(csvRowData)
+
+    csvFile.close()
 
 def executePsqlScript(args, msg, multithreadOn, showOutput):
     if multithreadOn:

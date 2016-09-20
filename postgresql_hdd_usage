@@ -1,0 +1,57 @@
+Default:
+
+4.0K	./pg_subtrans
+6.0M	./base/1
+6.1M	./base/12068
+6.0M	./base/12063
+18M	    ./base
+8.0K	./pg_clog
+4.0K	./pg_xlog/archive_status
+7.5M	./pg_xlog
+4.0K	./pg_multixact/offsets
+4.0K	./pg_multixact/members
+12K	    ./pg_multixact
+12K	    ./pg_notify
+424K	./global
+4.0K	./pg_twophase
+4.0K	./pg_stat_tmp
+4.0K	./pg_stat
+4.0K	./pg_tblspc
+4.0K	./pg_serial
+4.0K	./pg_snapshots
+26M	.
+
+After insertion of 5 tables X 10 columns X 60k rows into raw db:
+
+12K	    ./pg_subtrans
+70M	    ./base/12068
+82M	    ./base
+12K	    ./pg_clog
+96M	    ./pg_xlog
+12K	    ./pg_multixact/offsets
+4.0K	./pg_multixact/members
+20K	    ./pg_multixact
+178M	.
+
+After insertion of 5 tables X 10 columns X 180k rows into raw db:
+
+12K	./pg_subtrans
+6.0M	./base/1
+199M	./base/12068
+6.0M	./base/12063
+211M	./base
+12K	./pg_clog
+4.0K	./pg_xlog/archive_status
+129M	./pg_xlog
+12K	./pg_multixact/offsets
+4.0K	./pg_multixact/members
+20K	./pg_multixact
+12K	./pg_notify
+428K	./global
+4.0K	./pg_twophase
+4.0K	./pg_stat_tmp
+4.0K	./pg_stat
+4.0K	./pg_tblspc
+4.0K	./pg_serial
+4.0K	./pg_snapshots
+340M	.

@@ -4,6 +4,8 @@ Example usage of data postgresql data table script:
 Example usage of table verification script:
     ./verify_tables.py -d 172.17.0.2 -u postgres -t 5 -m
 
+Docker container resource usage monitoring:
+    sudo docker stats <container name/id>
 
 Get PostgreSQL image and start container (<=9.5 supported by pgadmin3):
 sudo docker run -it --name postgres_test -d ubuntu/postgres:latest
@@ -18,7 +20,7 @@ Enter container bash:
 sudo docker exec -ti 99ca6832ef82 /bin/bash
 
 JDBCClient execution example:
-    java -cp "postgres.dbclient-0.0.1-SNAPSHOT.jar:/home/mkamras/Downloads/postgresql-9.3-1104.jdbc41.jar" postgres.dbclient.DBClient
+    java -cp "target/postgres.dbclient-0.0.1-SNAPSHOT.jar:/usr/share/java/postgresql-jdbc4-9.2.jar:/home/mkamras/.m2/repository/org/apache/commons/commons-csv/1.4/commons-csv-1.4.jar" postgres.dbclient.DBClient /home/mkamras/psgre_test/phusion/gen/csv/
 
 JDBC libpostgresql-jdbc-java
 
@@ -61,10 +63,20 @@ SSH:
         # Login to the container
         ssh -i insecure_key root@<IP address>
 
+Docker CPU constraints:
+    - --cpuset-cpus: the CPU units available for the computer, example: --cpuset-cpus="0-3", --cpuset-cpus="1,3"
+    - --cpu-quota: the % available from the CPU units for the container, for example: --cpu-quota=20000 (=20% on linux)
+    - sudo docker run -it --name postgres_test --cpuset-cpus="0" --cpu-quota=20000 -d phusion/postgres:latest
+
 TODO:
-    - helyesség ellenőrzése (generátor szkript)
-    - erőforráskorlátozás figyelmesen
-    - CPU szál/órajel
-    - jiffy esetleg, odafigyelni
-    - !!! xlog felsőkorlát van-e, esetleg beállítani, postgre-s forrás !!!
-    - java kliens: timestampek
+    - jdbc java loggolás
+    - !!! xlog felsőkorlát van-e, esetleg beállítani, postgre-s forrás !!! .. legutóbb 129M nél leállt fixen, ha töröltem belőle, szintén itt állt meg
+    - script:
+        - kísérlet ismétlése:
+            1. lemez cache ürítése
+            2. postgreSQL és JDBC client párhuzamos indítása
+            3. teszt futtatás amíg nincs meg minden tábla, helyes eredmény lekérdezése minden táblából
+                - ha helytelen eredmény:
+                    - log
+                    - leállás
+            4. goto 1
