@@ -1,5 +1,5 @@
 Example usage of data postgresql data table script:
-    ./generator_script.py -d 172.17.0.2 -u postgres -p postgres -t 5 -c 10 -r 60000 -m
+    ./generator_script.py -d 172.17.0.2 -u postgres -p postgres -t 5 -c 10 -r 180000 -m
 
 Example usage of table verification script:
     ./verify_tables.py -d 172.17.0.2 -u postgres -t 5 -m
@@ -68,15 +68,9 @@ Docker CPU constraints:
     - --cpu-quota: the % available from the CPU units for the container, for example: --cpu-quota=20000 (=20% on linux)
     - sudo docker run -it --name postgres_test --cpuset-cpus="0" --cpu-quota=20000 -d phusion/postgres:latest
 
+Prototípuson:
+    - (2mag ->) 2x "nice -n -19 burnP6" futtatás
+    - tail -F postgres_log.log | grep FATAL
+
 TODO:
-    - jdbc java loggolás
     - !!! xlog felsőkorlát van-e, esetleg beállítani, postgre-s forrás !!! .. legutóbb 129M nél leállt fixen, ha töröltem belőle, szintén itt állt meg
-    - script:
-        - kísérlet ismétlése:
-            1. lemez cache ürítése
-            2. postgreSQL és JDBC client párhuzamos indítása
-            3. teszt futtatás amíg nincs meg minden tábla, helyes eredmény lekérdezése minden táblából
-                - ha helytelen eredmény:
-                    - log
-                    - leállás
-            4. goto 1
