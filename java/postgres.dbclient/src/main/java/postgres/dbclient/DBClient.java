@@ -11,94 +11,94 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Random;
+import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 
 public class DBClient {
-	
-	public static CSVRecord rowToCheck = null;
+
 	public static String URL = "jdbc:postgresql://172.17.0.2:5432/postgres";
 	public static String USER = "postgres";
 	public static String PASSWORD = "postgres";
 	public static int tableCount = 5;
 	public static int colCount = 10;
 	public static int rowCount = 180000;
+	public static CSVRecord[] rowsToCheck = new CSVRecord[tableCount];
 	public static List<String> colNames = new ArrayList<String>();
 	public static List<String> tableNames = new ArrayList<String>();
 	public static int tableNumToCheck;
 	public static int rowNumToCheck;
-	public static String tableName = null;
 	public static String csvRoot = "";
-	public static Logger lgr = Logger.getLogger(DBClient.class.getName());
+	public static Logger lgr = null;
+	public static FileHandler logFh = null;
+	public static String logsFolder = "logs/";
 
 	public static void main(String[] args) {
-		getTimeStamp();
+		initLogger();
 		generateColumnNames();
 		generateTableNames();
-
 		if (args.length < 1) {
-			lgr.log(Level.SEVERE,
-					"Undefined path to the root of CSV files that contain expected data.");
+			logError("Undefined path to the root of CSV files that contain expected data.");
 			return;
 		} else {
 			Path path = Paths.get(args[0]);
 			if (Files.notExists(path)) {
-				lgr.log(Level.SEVERE, args[0] + " is not a directory.");
+				log(args[0] + " is not a directory.");
 				return;
 			}
 		}
 		csvRoot = args[0];
 		Random rand = new Random();
-		tableNumToCheck = rand.nextInt(tableCount) + 1;
 		rowNumToCheck = rand.nextInt(rowCount) + 1;
-		tableName = tableNames.get(tableNumToCheck - 1);
-		File csvData = new File(csvRoot + tableName + ".csv");
 		int i = 0;
-		CSVRecord csvHeader = null;
-		try {
-			CSVParser parser = CSVParser
-					.parse(csvData, Charset.defaultCharset(), CSVFormat.EXCEL
-							.withHeader(colNames.toArray(new String[0])));
-			for (CSVRecord csvRecord : parser) {
-				if (csvHeader == null) {
-					csvHeader = csvRecord;
-				} else if (i == rowNumToCheck) {
-					// System.out.println("Found row " + rowNumToCheck);
-					// System.out.println(csvRecord.get(csvHeader.get(1)));
-					rowToCheck = csvRecord;
-					break;
+		for(int tableNum = 0; tableNum < tableCount; tableNum++) {
+			String tableName = tableNames.get(tableNum);
+			try {
+				File csvData = new File(csvRoot + tableName + ".csv");
+				CSVParser parser = CSVParser
+						.parse(csvData, Charset.defaultCharset(), CSVFormat.EXCEL
+								.withHeader(colNames.toArray(new String[0])));
+				for (CSVRecord csvRecord : parser) {
+					if (i == rowNumToCheck) {
+						// System.out.println("Found row " + rowNumToCheck);
+						// System.out.println(csvRecord.get(csvHeader.get(1)));
+						rowsToCheck[tableNum] = csvRecord;
+						i = 0;
+						break;
+					}
+					i++;
 				}
-				i++;
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
-		} catch (IOException e) {
-			e.printStackTrace();
 		}
 
 		while (!tablesExist());
-		while (!expectedRecordReceived());
+		verifyRecords();
+		System.exit(0);
 	}
 
 	private static String getTimeStamp() {
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
 		Date now = new Date();
-	    String strDate = sdf.format(now);
+		String strDate = sdf.format(now);
 		return strDate;
 	}
 
 	private static boolean tablesExist() {
-		lgr.log(Level.INFO, "Verifying tables existence...");
+		log("Verifying tables existence...");
 
-		boolean tablesExist = false; // TODO rename exists
+		boolean tablesExist = false;
 		Connection con = null;
 		Statement st = null;
 		ResultSet rs = null;
@@ -118,7 +118,7 @@ public class DBClient {
 			}
 
 		} catch (SQLException ex) {
-			lgr.log(Level.SEVERE, ex.getMessage(), ex);
+			logError(ex.getMessage());
 			tablesExist = false;
 		} finally {
 			try {
@@ -133,38 +133,49 @@ public class DBClient {
 				}
 
 			} catch (SQLException ex) {
-				lgr.log(Level.WARNING, ex.getMessage(), ex);
+				log(ex.getMessage());
 				tablesExist = false;
 			}
 		}
 		return tablesExist;
 	}
 
-	private static boolean expectedRecordReceived() {
-		Logger lgr = Logger.getLogger(DBClient.class.getName());
-		lgr.log(Level.INFO, "Checking row " + (rowNumToCheck + 1) + " from " + tableName + " ...");
-
+	private static void verifyRecords() {
+		
 		Connection con = null;
 		Statement st = null;
 		ResultSet rs = null;
-		boolean expectedRecordFound = false;
+		boolean recordsMatch = true;
 		try {
-			con = DriverManager.getConnection(URL, USER, PASSWORD);
-			st = con.createStatement();
-			rs = st.executeQuery("SELECT * FROM " + tableName
-					+ " ORDER BY id LIMIT 1 OFFSET " + rowNumToCheck + ";");
-			if (rs.next()) {
-				for(String colName : colNames) {
-					if(!(rowToCheck.get(colName).toString()).equals(rs.getArray(colName).toString())) {
-						lgr.log(Level.SEVERE, "Error: Unexpected result found in table: [" + tableName + "] at row: [" + rowNumToCheck + "]");
-					} else {
-						expectedRecordFound = true;
+			for(int i = 0; i < tableCount; i++) {
+				if(!recordsMatch) {
+					break;
+				}
+				String tableName = tableNames.get(i);
+				log("Checking row " + (rowNumToCheck + 1) + " from " + tableName + " ...");
+				
+				con = DriverManager.getConnection(URL, USER, PASSWORD);
+				st = con.createStatement();
+				rs = st.executeQuery("SELECT * FROM " + tableName
+						+ " ORDER BY id LIMIT 1 OFFSET " + rowNumToCheck + ";");
+				if (rs.next()) {
+					for (String colName : colNames) {
+						if (!(rowsToCheck[i].get(colName).toString()).equals(rs
+								.getArray(colName).toString())) {
+							logError("Error: Unexpected result found in table: ["
+									+ tableName + "] at row: [" + rowNumToCheck
+									+ "]");
+							logError("Expected: ["
+									+ rowsToCheck[i].get(colName).toString()
+									+ "] | Received: ["
+									+ rs.getArray(colName).toString() + "]");
+							recordsMatch = false;
+						} 
 					}
 				}
-				
 			}
 		} catch (SQLException ex) {
-			lgr.log(Level.SEVERE, ex.getMessage(), ex);
+			logError(ex.getMessage());
 		} finally {
 			try {
 				if (rs != null) {
@@ -178,11 +189,12 @@ public class DBClient {
 				}
 
 			} catch (SQLException ex) {
-				lgr.log(Level.WARNING, ex.getMessage(), ex);
+				logError(ex.getMessage());
 			}
 		}
-		
-		return expectedRecordFound;
+		if(!recordsMatch) {
+			System.exit(1);
+		}
 	}
 
 	private static void generateTableNames() {
@@ -195,6 +207,36 @@ public class DBClient {
 	private static void generateColumnNames() {
 		for (int i = 0; i < colCount; i++) {
 			colNames.add("col" + (i + 1));
+		}
+	}
+
+	private static void log(String logMsg) {
+		lgr.info("[" + getTimeStamp() + "] " + logMsg);
+	}
+
+	private static void logError(String errMsg) {
+		lgr.log(Level.SEVERE, "[" + getTimeStamp() + "] " + errMsg);
+	}
+
+	private static void initLogger() {
+		File logFolder = new File(logsFolder);
+		if (!logFolder.exists()) {
+			logFolder.mkdirs();
+		}
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd_HH_mm_ss");
+		Date now = new Date();
+		String strDate = sdf.format(now);
+		String logFileRelPath = logsFolder + strDate + ".log";
+		try {
+			logFh = new FileHandler(logFileRelPath);
+			lgr = Logger.getLogger(DBClient.class.getName());
+			lgr.setUseParentHandlers(false);
+			lgr.addHandler(logFh);
+			SimpleFormatter formatter = new SimpleFormatter();
+			logFh.setFormatter(formatter);
+		} catch (SecurityException | IOException e) {
+			System.out.println("Failed to create " + logFileRelPath);
+			e.printStackTrace();
 		}
 	}
 }
