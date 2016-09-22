@@ -72,5 +72,17 @@ Prototípuson:
     - (2mag ->) 2x "nice -n -19 burnP6" futtatás
     - tail -F postgres_log.log | grep FATAL
 
+Bug report:
+    - https://www.postgresql.org/docs/current/static/bug-reporting.html
+
+FATAL:  could not open log file "/pg_log/postgresql-2016-09-22.log": No such file or directory
+
+
+2016 szept 22:
+    - PostgreSQL but report, checking bug on v9.5
+
 TODO:
+    - olvasni http://blog.scoutapp.com/articles/2014/11/04/restricting-process-cpu-usage-using-nice-cpulimit-and-cgroups
     - !!! xlog felsőkorlát van-e, esetleg beállítani, postgre-s forrás !!! .. legutóbb 129M nél leállt fixen, ha töröltem belőle, szintén itt állt meg
+    - lm-sensors csomag feltelepítése proto-ra, gkrellm rendszermonitorba integrálni, néha monitorozni a procit
+    - use jdbc client jar stored in phusion/ssh/jars!

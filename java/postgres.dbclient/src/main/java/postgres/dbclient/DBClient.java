@@ -27,7 +27,7 @@ import org.apache.commons.csv.CSVRecord;
 
 public class DBClient {
 
-	public static String URL = "jdbc:postgresql://172.17.0.2:5432/postgres";
+	public static String URL = null; 
 	public static String USER = "postgres";
 	public static String PASSWORD = "postgres";
 	public static int tableCount = 5;
@@ -41,14 +41,14 @@ public class DBClient {
 	public static String csvRoot = "";
 	public static Logger lgr = null;
 	public static FileHandler logFh = null;
-	public static String logsFolder = "logs/";
+	public static String logsFolder = "logs/jdbc/";
 
 	public static void main(String[] args) {
 		initLogger();
 		generateColumnNames();
 		generateTableNames();
-		if (args.length < 1) {
-			logError("Undefined path to the root of CSV files that contain expected data.");
+		if (args.length < 2) {
+			logError("Required arguments: path to the root of CSV files that contain expected data, database host.");
 			return;
 		} else {
 			Path path = Paths.get(args[0]);
@@ -57,6 +57,7 @@ public class DBClient {
 				return;
 			}
 		}
+		URL = "jdbc:postgresql://" + args[1] + ":5432/postgres";
 		csvRoot = args[0];
 		Random rand = new Random();
 		rowNumToCheck = rand.nextInt(rowCount) + 1;
