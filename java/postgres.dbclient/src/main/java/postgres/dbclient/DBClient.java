@@ -97,7 +97,7 @@ public class DBClient {
 	}
 
 	private static boolean tablesExist() {
-		log("Verifying tables existence...");
+		//log("Verifying tables existence...");
 
 		boolean tablesExist = false;
 		Connection con = null;
@@ -119,8 +119,11 @@ public class DBClient {
 			}
 
 		} catch (SQLException ex) {
-			logError(ex.getMessage());
+			if(!ex.getSQLState().equals("08001")) {
+				logError(ex.getMessage());
+			}
 			tablesExist = false;
+			
 		} finally {
 			try {
 				if (rs != null) {
