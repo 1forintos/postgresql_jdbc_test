@@ -31,7 +31,7 @@ def main(argv):
     multithreadOn = None
     saveCsv = None
 
-    usage = "usage: %prog -d <db_host> -u <db_user> -p <db_password> -t <num_of_tables> -c <num_of_cols> -r <num_of_rows> --phase <phase_to_run> [-m]"
+    usage = "usage: %prog -d <db_host> -u <db_user> -p <db_password> -t <num_of_tables> -c <num_of_cols> -r <num_of_rows> [--phase <phase_to_run>] [-m]"
     parser = OptionParser(usage)
     parser.add_option("-d", "--dbhost", dest="dbhost", help="database host", metavar="DBHOST")
     parser.add_option("-u", "--user", dest="user", help="database user", metavar="USER")
@@ -222,7 +222,7 @@ def genCsvFile(tableNum, NUMBER_OF_COLUMNS, NUMBER_OF_ROWS):
     print("Generating CSV for table " + str(tableNum) + " (pid:" + str(os.getpid()) + ")")
     csvFile = open("gen/csv/table" + str(tableNum) + ".csv", 'w')
     csvWriter = csv.writer(csvFile, delimiter=',')
-    
+
     for rowNum in range(1, NUMBER_OF_ROWS + 1):
         csvRowData = []
         for colNum in range(1, NUMBER_OF_COLUMNS + 1):

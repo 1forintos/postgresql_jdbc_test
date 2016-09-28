@@ -1,8 +1,0 @@
-Dont forget: chmod, IP placeholder
-
-sudo docker build . -f Dockerfile -t ubuntu_14.04/pg_9.3.14:latest
-sudo docker run -it --name postgres_9.3.14 -d ubuntu_14.04/pg_9.3.14:latest
-sudo docker exec postgres_9.3.14 service postgresql restart
-./generator_script.py -d 172.17.0.2 -u postgres -p postgres -t 5 -c 10 -r 180000 -m --phase 1
-./generator_script.py -d 172.17.0.2 -u postgres -p postgres -t 5 -c 10 -r 180000 -m --phase 2
-sudo ack-grep -i fatal.*starting -B 30 -A 10

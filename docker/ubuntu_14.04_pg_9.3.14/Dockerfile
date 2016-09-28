@@ -1,10 +1,5 @@
 FROM ubuntu:trusty
 
-# dummy Database data generator script
-RUN mkdir /scripts/
-ADD generator_script.py /scripts/
-RUN chmod +x /scripts/generator_script.py
-
 RUN apt-get update
 RUN apt-get install -y nano wget aptitude ack-grep
 
