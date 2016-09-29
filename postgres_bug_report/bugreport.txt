@@ -1,0 +1,61 @@
+Version: 9.3.14
+
+OS: Ubuntu 14.04.5 LTS, Trusty Tahr
+
+Short description: "FATAL:  the database system is starting up" error occurs to queries which are run shortly after PostgreSQL server is started
+
+Description:
+
+TODO:
+    - debug5 log 1 giga kb de át lehet írni itt meg itt
+    - eldöntendő akarja-e telepíteni a dockert/java 7et (ha nincs fent)
+    - install Java 7
+    - build instructions for JDBC project
+    - van-e ismert interface arra, amin keresztül kiderül hogy teljesen működöképes már az adatbázis
+    - by the way elméletileg előfordulhat-e az hogy egy query eredményére rossz adatok érkeznek
+
+After the startup of the PostgreSQL server there is a state when it accepts incoming connections but generates "FATAL:  the database system is starting up" as results for run queries.
+
+I have written a script that installs the required environment and reproduces the bug.
+
+Tested on:
+    - OS: Ubuntu 16.04.1 LTS (Xenial Xerus) 64bit
+    - lshw output: [github link]
+
+Required files in the same folder as the run script:
+    -
+
+The way this script works:
+    -
+
+In steps, this script:
+    1. installs/updates Docker containerization platform, Java 7 (after user confirmation)
+    2. stops ALL previously started containers in case they exists
+    3. removes generated content of previous runs of the script
+    4. builds a Docker image using this Dockerfile [github link] with "ubuntu_14.04/pg_9.3.14:latest" tag
+    5. (using lscpu) calculates the CPU quota to be granted to the Docker container to achieve ~400MHz clock speed
+    6. creates and starts a container with the name "postgres_9.3.14" that has 1 CPU core and the calculated CPU quota
+    7. starts the PostgreSQL server in the container
+    8. rune the "generator_script.py" script which:
+        8.1. generates the SQL files for inserting dummy data into the database ([5 tables] X [id + 10 columns (varchar(100))] X [180k rows], (example: [github link]))
+        8.2. generates CSV files for the JDBC application (see 9.2.b.2)
+        8.3. executes all SQL scripts one-by-one which were generated in 8.1, using the following command: psql -h <container_IP> -U postgres -f <sql_script_path> -1
+    9. runs the test_db.sh script for 300 seconds which:
+        9.1. stops the PostgreSQL server in the container
+        9.2. a) and b) are executed paralleled:
+            a) starts the PostgreSQL server in the container
+            b) runs the JDBC application which:
+                9.2.b.1 runs "SELECT count(*) AS row_count FROM tableN" N=1..5 until all 5 tables return a 0> row_count
+                9.2.b.2 checks and compares one random row from all tables in the database to the corresponding values contained by the generated CSV files (in 8.2) to verify their correctness
+        9.3. checks the exit code of the JDBC application, if the exit code equals 1 then the data compared in 9.2.b.2 do not match
+        9.4. GOTO 9.1.
+    10. copies the generated logs by the PostgreSQL server from the container to the <directory where the script is run>/logs/pg_log folder
+    11. restarts the PostgreSQL server in the container    
+
+
+
+Additional information of the test environment:
+Host OS: Ubuntu 16.04.1 LTS (Xenial Xerus) 64bit
+Docker version 1.12.1, build 23cf638.
+lshw output: [github link]
+PostgreSQL configuration file used in the container: [github link]
