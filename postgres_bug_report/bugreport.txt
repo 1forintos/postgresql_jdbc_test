@@ -15,7 +15,7 @@ postgresql_9.3.14_test.sh and its required files can be downloaded from: https:/
 The script was tested on:
     - Host OS: Ubuntu 16.04.1 LTS (Xenial Xerus) 64bit
     - Docker version at the time of testing: 1.12.1, build 23cf638.
-    - lshw output: TODO [github link]
+    - lshw output: https://github.com/1forintos/postgresql_jdbc_test/blob/master/postgres_bug_report/lshw_output.txt
 
 Information on the test environment it creates:
     - container OS: "Ubuntu 14.04.5 LTS, Trusty Tahr"
@@ -48,6 +48,10 @@ Note:
     - logging of postgresql is set to level "debug5" which (in this current setup) generates around 1GB of logs within the container.
     - this can be lowered by modifying the postgresql.conf file in the same folder as the script is then running postgresql_9.3.14_test.sh
     - postgresql_9.3.14_test.sh most likely requires superuser privileges to work
+    - total run of the script may take up to 30 minutes because of the low hardware resources the docker container gets (so as to reproduce best the bug that occurs on "low resource" hardwares)
+        - this time can be reduced redefining "cpuQuota" in the script by modifying the following line:
+            - "let cpuQuota=50000000/$maxClockSpeed" to "let cpuQuota=Y" where Y is Y=X*1000 where X is the percentage of max CPU speed we want to give the docker container
+            - the higher this percentage is the less likely it will be to reproduce the bug
 
 Details of this script:
     1. installs/updates Docker containerization platform, Java 7 (after user confirmation)
@@ -73,10 +77,17 @@ Details of this script:
     10. copies the generated logs by the PostgreSQL server from the container to the <directory where the script is run>/logs/pg_log folder
     11. restarts the PostgreSQL server in the container
 
+    After running this script there are 2 folders in the logs folder
+        - jdbc: containing generated logs of the JDBC application
+        - pg_log: containing logs copied from the PostgreSQL server
+
+    Among the JDBC logs there is a high chance of seeing "FATAL: the database system is starting up" as an exception during the runs of queries.
+
 The JDBC application:
     - project can be found via this link: https://github.com/1forintos/postgresql_jdbc_test/tree/master/java/postgres.dbclient
     - project was created with Eclipse Luna 32bit
     - build with Apache Maven 3.3.9 (command in project root: mvn clean install)
+    - requires Java 1.7
 
 2 connecting questions:
     - Is there a known interface to check if the database is up and fully functional and ready for queries?

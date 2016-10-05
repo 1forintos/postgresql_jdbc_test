@@ -72,11 +72,13 @@ docker build . -f Dockerfile -t $dockerImageName
 
 # determining CPU quota to achieve ~600MHz clock speed
 maxClockSpeed=$(lscpu | grep 'CPU max MHz' | awk '{ print $4; }')
-let cpuQuota=60000000/$maxClockSpeed
 
-echo "CPU max clock speed: $maxClockSpeed"
-let quotePercentage=$cpuQuota/1000
-echo "CPU quota for docker container: ~ $quotePercentage%"
+let cpuQuota=50000000/$maxClockSpeed
+#let cpuQuota=$maxClockSpeed
+
+echo "Max CPU clock speed: $maxClockSpeed MHz"
+let quotaPercentage=$cpuQuota/1000
+echo "CPU quota for docker container: ~ $quotaPercentage%"
 
 # create and start container
 CID=$(docker run -it --name $dockerContainerName --cpuset-cpus="0" --cpu-quota=$cpuQuota -d $dockerImageName)
