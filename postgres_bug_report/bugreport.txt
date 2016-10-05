@@ -6,29 +6,50 @@ Short description: "FATAL:  the database system is starting up" error occurs to 
 
 Description:
 
-TODO:
-    - debug5 log 1 giga kb de át lehet írni itt meg itt
-    - eldöntendő akarja-e telepíteni a dockert/java 7et (ha nincs fent)
-    - install Java 7
-    - build instructions for JDBC project
-    - van-e ismert interface arra, amin keresztül kiderül hogy teljesen működöképes már az adatbázis
-    - by the way elméletileg előfordulhat-e az hogy egy query eredményére rossz adatok érkeznek
-
 After the startup of the PostgreSQL server there is a state when it accepts incoming connections but generates "FATAL:  the database system is starting up" as results for run queries.
 
-I have written a script that installs the required environment and reproduces the bug.
+I have written a postgresql_9.3.14_test.sh script that installs the required environment and reproduces the bug.
 
-Tested on:
-    - OS: Ubuntu 16.04.1 LTS (Xenial Xerus) 64bit
-    - lshw output: [github link]
+postgresql_9.3.14_test.sh and its required files can be downloaded from: https://github.com/1forintos/postgresql_jdbc_test/tree/master/postgres_bug_report
+
+The script was tested on:
+    - Host OS: Ubuntu 16.04.1 LTS (Xenial Xerus) 64bit
+    - Docker version at the time of testing: 1.12.1, build 23cf638.
+    - lshw output: TODO [github link]
+
+Information on the test environment it creates:
+    - container OS: "Ubuntu 14.04.5 LTS, Trusty Tahr"
+    - kernel: Linux 4.4.0-38-generic
+    - postgresql server version (psql -c "select version();"): PostgreSQL 9.3.14 on x86_64-unknown-linux-gnu, compiled by gcc (Ubuntu 4.8.4-2ubuntu1~14.04.3) 4.8.4, 64-bit
+    - psql client version (psql --version): psql (PostgreSQL) 9.5.4
+    - PostgreSQL configuration file used in the container: https://github.com/1forintos/postgresql_jdbc_test/blob/master/postgres_bug_report/postgresql.conf
 
 Required files in the same folder as the run script:
-    -
+    - install_docker.sh
+    - Dockerfile
+    - postgresql.conf
+    - generator_script.py
+    - test_db.sh
+    - jars/postgres.dbclient.jar
+    - jars/postgresql-jdbc4-9.2.jar
+    - jars/commons-csv-1.4.jar
 
-The way this script works:
-    -
+Overview of this script:
+    - Checks docker and java installation and offers their update/installtion.
+    - Creates and runs docker container for the postgresql database server using the required docker image file.
+    - Once the container and the database is set up it inserts dummy data into the database.
+    - Then it creates a loop:
+        - stops the database
+        - starts the database and runs queries using a JDBC application at the same time
+    - At the end it copies database logs into the logs/pg_log folder
+    - The JDBC application creates logs
 
-In steps, this script:
+Note:
+    - logging of postgresql is set to level "debug5" which (in this current setup) generates around 1GB of logs within the container.
+    - this can be lowered by modifying the postgresql.conf file in the same folder as the script is then running postgresql_9.3.14_test.sh
+    - postgresql_9.3.14_test.sh most likely requires superuser privileges to work
+
+Details of this script:
     1. installs/updates Docker containerization platform, Java 7 (after user confirmation)
     2. stops ALL previously started containers in case they exists
     3. removes generated content of previous runs of the script
@@ -50,12 +71,13 @@ In steps, this script:
         9.3. checks the exit code of the JDBC application, if the exit code equals 1 then the data compared in 9.2.b.2 do not match
         9.4. GOTO 9.1.
     10. copies the generated logs by the PostgreSQL server from the container to the <directory where the script is run>/logs/pg_log folder
-    11. restarts the PostgreSQL server in the container    
+    11. restarts the PostgreSQL server in the container
 
+The JDBC application:
+    - project can be found via this link: https://github.com/1forintos/postgresql_jdbc_test/tree/master/java/postgres.dbclient
+    - project was created with Eclipse Luna 32bit
+    - build with Apache Maven 3.3.9 (command in project root: mvn clean install)
 
-
-Additional information of the test environment:
-Host OS: Ubuntu 16.04.1 LTS (Xenial Xerus) 64bit
-Docker version 1.12.1, build 23cf638.
-lshw output: [github link]
-PostgreSQL configuration file used in the container: [github link]
+2 connecting questions:
+    - Is there a known interface to check if the database is up and fully functional and ready for queries?
+    - Is it possible theoretically that the result of a query is incorrect and does not match the actual data in the database?
